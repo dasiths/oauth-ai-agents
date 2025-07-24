@@ -355,8 +355,11 @@ This example illustrates a scenario where one agent delegates a task to another 
 }
 ~~~
 
-## Component and Sequence Diagrams
-### Scenario 1: Autonomous AI Agent (Client Credentials Grant)
+--- back
+
+# Appendix B. Component and Sequence Diagrams
+
+## B.1. Scenario 1: Autonomous AI Agent (Client Credentials Grant)
 
 ```mermaid
 sequenceDiagram
@@ -385,9 +388,7 @@ sequenceDiagram
 - No user involvement in the flow
 - Used for autonomous operations like monitoring, data processing, etc.
 
----
-
-### Scenario 2: Delegated Action on Behalf of Users (Authorization Code Grant)
+## B.2 Scenario 2: Delegated Action on Behalf of Users (Authorization Code Grant)
 
 ```mermaid
 sequenceDiagram
@@ -436,9 +437,7 @@ sequenceDiagram
 - Explicit user consent required
 - Standard OAuth 2.0 Authorization Code flow
 
----
-
-### Scenario 3: Delegated Action Between Agents (Token Exchange)
+## B.3 Scenario 3: Delegated Action Between Agents (Token Exchange)
 
 ```mermaid
 sequenceDiagram
@@ -476,4 +475,3 @@ sequenceDiagram
 - Agent B becomes the current client
 - Full traceability of delegation path
 
----
