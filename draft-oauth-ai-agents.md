@@ -354,3 +354,126 @@ This example illustrates a scenario where one agent delegates a task to another 
   } 
 }
 ~~~
+
+## Component and Sequence Diagrams
+### Scenario 1: Autonomous AI Agent (Client Credentials Grant)
+
+```mermaid
+sequenceDiagram
+    participant Agent as Autonomous Agent
+    participant AS as Authorization Server
+    participant RS as Resource Server
+
+    note over Agent, RS: Agent acts independently without user context
+
+    Agent->>AS: (1) Client Credentials Grant Request<br/>grant_type=client_credentials<br/>client_id=agent-xyz-instance-456<br/>client_secret=***<br/>scope=read:data write:logs
+    
+    AS->>AS: (2) Validate agent credentials<br/>& generate token
+    
+    AS->>Agent: (3) Access Token (JWT)<br/>sub=agent-xyz-instance-456<br/>client_id=agent-xyz-instance-456<br/>sub_entity_type=agent<br/>client_entity_type=agent<br/>sub_parent=agent-xyz-app-789<br/>client_parent=agent-xyz-app-789
+    
+    Agent->>RS: (4) Access Protected Resource<br/>Authorization: Bearer <access_token>
+    
+    RS->>RS: (5) Validate token & claims<br/>Check entity types & permissions
+    
+    RS->>Agent: (6) Protected Resource Response
+```
+
+**Key Characteristics:**
+- Agent is both the subject (`sub`) and client (`client_id`)
+- Both entity types are "agent"
+- No user involvement in the flow
+- Used for autonomous operations like monitoring, data processing, etc.
+
+---
+
+### Scenario 2: Delegated Action on Behalf of Users (Authorization Code Grant)
+
+```mermaid
+sequenceDiagram
+    participant UA as User-Agent
+    participant Agent as AI Agent
+    participant Client as Client App
+    participant AS as Authorization Server
+    participant RS as Resource Server
+
+    note over UA, RS: Agent needs user consent to act on their behalf
+
+    Agent->>Client: (1) Signal need to act on User's behalf<br/>requested_scopes=read:email write:calendar
+    
+    Client->>RS: (2) Attempt action (may fail)<br/>GET /user/emails
+    
+    RS->>Client: (3) CHALLENGE: HTTP 401 Unauthorized<br/>WWW-Authenticate: Bearer error="invalid_token"
+    
+    Client->>UA: (4) Redirect to Authorization Server<br/>response_type=code&client_id=agent-xyz<br/>&scope=read:email write:calendar<br/>&code_challenge=xyz&state=abc
+    
+    UA->>AS: (5) Authorization Request
+    
+    AS->>UA: (6) Present consent screen<br/>"Agent XYZ wants to access your email and calendar"
+    
+    UA->>AS: (7) User grants consent
+    
+    AS->>UA: (8) Authorization Code<br/>Location: redirect_uri?code=auth_code&state=abc
+    
+    UA->>Client: (9) Forward Authorization Code
+    
+    Client->>AS: (10) Token Request<br/>grant_type=authorization_code<br/>code=auth_code<br/>code_verifier=xyz
+    
+    AS->>Client: (11) Access Token (JWT)<br/>sub=user-123<br/>client_id=agent-xyz-instance-456<br/>sub_entity_type=user<br/>client_entity_type=agent<br/>client_parent=agent-xyz-app-789
+    
+    Client->>RS: (12) Retry Action with Access Token<br/>Authorization: Bearer <access_token>
+    
+    RS->>RS: (13) Validate delegation<br/>Check user is subject, agent is client
+    
+    RS->>Client: (14) Protected Resource Response
+    
+    Client->>Agent: (15) Operation completed successfully
+```
+
+**Key Characteristics:**
+- User is the subject (`sub=user-123`)
+- Agent is the client (`client_id=agent-xyz`)
+- Explicit user consent required
+- Standard OAuth 2.0 Authorization Code flow
+
+---
+
+### Scenario 3: Delegated Action Between Agents (Token Exchange)
+
+```mermaid
+sequenceDiagram
+    participant AgentA as Agent A
+    participant AgentB as Agent B
+    participant AS as Authorization Server
+    participant RS as Resource Server
+
+    note over AgentA, RS: Agent A delegates specific task to Agent B
+
+    AgentA->>AgentB: (1) Delegate task<br/>"Process these financial reports"<br/>task_context=financial_analysis
+    
+    AgentB->>AS: (2) Token Exchange Request<br/>grant_type=urn:ietf:params:oauth:grant-type:token-exchange<br/>subject_token=agent_a_access_token<br/>actor_token=agent_b_client_credentials<br/>requested_token_type=urn:ietf:params:oauth:token-type:access_token<br/>scope=read:financial write:reports
+    
+    AS->>AS: (3) Validate tokens & delegation<br/>- Verify Agent A's token<br/>- Verify Agent B's credentials<br/>- Check delegation permissions
+    
+    AS->>AgentB: (4) New Access Token (JWT)<br/>sub=user-123 (original subject)<br/>client_id=agent-b-instance-789<br/>sub_entity_type=user<br/>client_entity_type=agent<br/>client_parent=agent-b-app-100<br/>act.sub=agent-a-instance-456<br/>act.sub_entity_type=agent<br/>act.sub_parent=agent-a-app-200
+    
+    AgentB->>RS: (5) Access Protected Resource<br/>Authorization: Bearer <delegated_token><br/>GET /financial-reports
+    
+    RS->>RS: (6) Validate delegation chain<br/>- Original subject: user-123<br/>- Current actor: agent-b<br/>- Delegating actor: agent-a<br/>- Check permissions for financial data
+    
+    RS->>AgentB: (7) Financial Reports Data
+    
+    AgentB->>AgentB: (8) Process financial analysis
+    
+    AgentB->>AgentA: (9) Analysis results<br/>delegation_complete=true
+    
+    AgentA->>AgentA: (10) Continue with main workflow
+```
+
+**Key Characteristics:**
+- Preserves original user as subject
+- Creates delegation chain in `act` claim
+- Agent B becomes the current client
+- Full traceability of delegation path
+
+---
